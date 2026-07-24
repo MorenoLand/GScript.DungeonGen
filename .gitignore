@@ -1,0 +1,28 @@
+# Build directories
+build/
+bin/
+obj/
+test_run/
+.vs/
+out/
+
+# Executables & Binaries
+*.exe
+!original/dungeongen.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+*.ilk
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Generated output files
+*.gmap
+!original/*.gmap
+*.nw
+!original/*.nw
