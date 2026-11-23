@@ -4,22 +4,39 @@
 #include <ctime>
 #include <cstdlib>
 
-static const char* WALL_TYPE_NAMES[15] = {
-    "wallse",  // 0
-    "walle",   // 1
-    "wallne",  // 2
-    "walls",   // 3
-    "wall",    // 4
-    "walln",   // 5
-    "wallsw",  // 6
-    "wallw",   // 7
-    "wallnw",  // 8
-    "wallnw2", // 9
-    "wallne2", // 10
-    "wallsw2", // 11
-    "wallse2", // 12
-    "walld1",  // 13
-    "walld2"   // 14
+static const char* WALL_SHAPE_BY_MASK[256] = {
+    "path", "walln", "wallne", "walln", "walle", "wallne2", "walle", "wallne2",
+    "wallse", "wallne2", "walle", "wallne2", "walle", "wallne2", "walle", "wallne2",
+    "walls", "wall", "wallse2", "wall", "wallse2", "wall", "wallse2", "wall",
+    "walls", "wall", "wallse2", "wall", "wallse2", "wall", "wallse2", "wall",
+    "wallsw", "wallnw2", "walld2", "wallnw2", "wallse2", "wall", "wallse2", "wall",
+    "walls", "wall", "wallse2", "wall", "wallse2", "wall", "wallse2", "wall",
+    "walls", "wall", "wallse2", "wall", "wallse2", "wall", "wallse2", "wall",
+    "walls", "wall", "wallse2", "wall", "wallse2", "wall", "wallse2", "wall",
+    "wallw", "wallnw2", "wallnw2", "wallnw2", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallw", "wallnw2", "wallnw2", "wallnw2", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallnw", "walln", "walln", "walln", "wallne2", "wallne2", "wallne2", "wallne2",
+    "walld1", "wallne2", "wallne2", "wallne2", "wallne2", "wallne2", "wallne2", "wallne2",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallw", "wallnw2", "wallnw2", "wallnw2", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallw", "wallnw2", "wallnw2", "wallnw2", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallw", "wallnw2", "wallnw2", "wallnw2", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+    "wallsw2", "wall", "wall", "wall", "wall", "wall", "wall", "wall"
 };
 
 void DungeonGenerator::run(const std::string& optionsFilename) {
@@ -59,10 +76,10 @@ bool DungeonGenerator::loadDungeonDefinition() {
     if (options.randomSeed == 0) {
         unsigned int seed = static_cast<unsigned int>(std::time(nullptr));
         std::cout << "Generating new seed value:" << seed << "\n";
-        std::srand(seed);
+        Utils::seedRandom(seed);
     } else {
         std::cout << "Seed loaded from file value:" << options.randomSeed << "\n";
-        std::srand(options.randomSeed);
+        Utils::seedRandom(options.randomSeed);
     }
 
     if (!layout.generate(options)) {
@@ -93,7 +110,7 @@ void DungeonGenerator::createLevels() {
                 Link l;
                 l.targetLevel = Level::formatLevelName(options.levelStart, x - 1, y, levelsX, levelsY);
                 l.x = 0; l.y = 0; l.w = 1; l.h = 64;
-                l.newX = "64"; l.newY = "playery";
+                l.newX = "61"; l.newY = "playery";
                 lvl.links.push_back(l);
             }
             if (x + 1 < levelsX) { // Link East
@@ -107,7 +124,7 @@ void DungeonGenerator::createLevels() {
                 Link l;
                 l.targetLevel = Level::formatLevelName(options.levelStart, x, y - 1, levelsX, levelsY);
                 l.x = 0; l.y = 0; l.w = 64; l.h = 1;
-                l.newX = "playerx"; l.newY = "64";
+                l.newX = "playerx"; l.newY = "61";
                 lvl.links.push_back(l);
             }
             if (y + 1 < levelsY) { // Link South
@@ -121,116 +138,74 @@ void DungeonGenerator::createLevels() {
     }
 }
 
-int DungeonGenerator::determineWallShape(int gx, int gy) const {
+std::string DungeonGenerator::determineWallShape(int gx, int gy) const {
     auto isWall = [this](int x, int y) -> bool {
         if (x < 0 || x >= layout.width || y < 0 || y >= layout.height) return true;
         return layout.grid[x][y] == 'X';
     };
 
-    if (isWall(gx, gy)) return 4; // Default wall cell
+    if (isWall(gx, gy)) return "wall";
 
-    bool W  = isWall(gx, gy - 1);
-    bool NW = isWall(gx - 1, gy - 1);
-    bool N  = isWall(gx - 1, gy);
-    bool NE = isWall(gx - 1, gy + 1);
-    bool E  = isWall(gx, gy + 1);
-    bool SE = isWall(gx + 1, gy + 1);
-    bool S  = isWall(gx + 1, gy);
-    bool SW = isWall(gx + 1, gy - 1);
-
-    bool b1 = (NW && SW) || W;
-    bool b3 = (NW && NE) || N;
-    bool b2 = (NE && SE) || E;
-    bool b4 = (SE && SW) || S;
-
-    int sumB = b1 + b2 + b3 + b4;
-    int sumDiag = NW + SW + NE + SE;
-
-    if (sumB >= 3 || (b1 && b2) || (b3 && b4)) return 4;
-
-    if (sumB == 2) {
-        if (b1 && b3) return 9;
-        if (b3 && b2) return 10;
-        if (b2 && b4) return 12;
-        return 11;
-    }
-
-    if (sumB == 1) {
-        if (b1 || SE) return 7;
-        if (b3 || SW) return 5;
-        if (b2 || NW) return 1;
-        return 3;
-    }
-
-    if (sumDiag == 2) {
-        if (NW && SE) return 13;
-        if (SW && NE) return 14;
-    }
-
-    if (sumDiag == 1) {
-        if (NW) return 8;
-        if (NE) return 2;
-        if (SE) return 0;
-        return 6;
-    }
-
-    return 14;
+    int mask = 0;
+    if (isWall(gx, gy - 1)) mask |= 1;
+    if (isWall(gx + 1, gy - 1)) mask |= 2;
+    if (isWall(gx + 1, gy)) mask |= 4;
+    if (isWall(gx + 1, gy + 1)) mask |= 8;
+    if (isWall(gx, gy + 1)) mask |= 16;
+    if (isWall(gx - 1, gy + 1)) mask |= 32;
+    if (isWall(gx - 1, gy)) mask |= 64;
+    if (isWall(gx - 1, gy - 1)) mask |= 128;
+    return WALL_SHAPE_BY_MASK[mask];
 }
 
 void DungeonGenerator::generateDungeon() {
+    int mapWidth = levelsX * 64;
+    int mapHeight = levelsY * 64;
+    int layoutWidth = layout.width * 8;
+    int layoutHeight = layout.height * 11;
+
+    for (int gy = 0; gy < mapHeight; ++gy) {
+        for (int gx = 0; gx < mapWidth; ++gx) {
+            bool inside = gx < layoutWidth && gy < layoutHeight;
+            uint16_t base = inside ? 0x80C : 0xA00;
+            uint16_t tile = static_cast<uint16_t>(base + (gx & 3) + ((gy & 3) << 4));
+            levels[gx / 64][gy / 64].setTile(gx % 64, gy % 64, tile);
+        }
+    }
+
     for (int gx = 0; gx < layout.width; ++gx) {
         for (int gy = 0; gy < layout.height; ++gy) {
-            int wallShape = determineWallShape(gx, gy);
-            std::string shapeName = (wallShape >= 0 && wallShape < 15) ? WALL_TYPE_NAMES[wallShape] : "wall";
-
-            auto it = options.wallTemplates.find(shapeName);
-            if (it == options.wallTemplates.end()) {
-                it = options.wallTemplates.find("wall");
-            }
-
-            const auto& templateTiles = (it != options.wallTemplates.end()) ? it->second : std::vector<uint16_t>();
-
-            // Each grid cell is 8 tiles wide x 11 tiles high
-            for (int subY = 0; subY < 11; ++subY) {
-                for (int subX = 0; subX < 8; ++subX) {
-                    int totalTileX = gx * 8 + subX;
-                    int totalTileY = gy * 11 + subY;
-
-                    int lvlX = totalTileX / 64;
-                    int lvlY = totalTileY / 64;
-                    int localTileX = totalTileX % 64;
-                    int localTileY = totalTileY % 64;
-
-                    if (lvlX < levelsX && lvlY < levelsY) {
-                        uint16_t tileVal = 0xFF9;
-                        int idx = subY * 8 + subX;
-                        if (idx < static_cast<int>(templateTiles.size())) {
-                            tileVal = templateTiles[idx];
+            std::string shapeName = determineWallShape(gx, gy);
+            if (shapeName != "path") {
+                auto it = options.wallTemplates.find(shapeName);
+                if (it == options.wallTemplates.end()) {
+                    it = options.wallTemplates.find("wall");
+                }
+                if (it != options.wallTemplates.end()) {
+                    const auto& templateTiles = it->second;
+                    for (int subY = 0; subY < 11; ++subY) {
+                        for (int subX = 0; subX < 8; ++subX) {
+                            int idx = subY * 8 + subX;
+                            if (idx >= static_cast<int>(templateTiles.size())) continue;
+                            uint16_t tileVal = templateTiles[idx];
+                            if (tileVal == 0) continue;
+                            int totalTileX = gx * 8 + subX;
+                            int totalTileY = gy * 11 + subY;
+                            levels[totalTileX / 64][totalTileY / 64].setTile(totalTileX % 64, totalTileY % 64, tileVal);
                         }
-                        levels[lvlX][lvlY].setTile(localTileX, localTileY, tileVal);
                     }
                 }
             }
 
-            // Place NPCs
             for (const auto& npc : options.npcs) {
-                bool matchPlace = (npc.place == "path" && layout.grid[gx][gy] != 'X') ||
-                                 (npc.place == "wall" && layout.grid[gx][gy] == 'X') ||
-                                 (npc.place == shapeName);
-                if (matchPlace && (Utils::randomInt(100) < npc.chance)) {
+                bool matchPlace = (npc.place == shapeName);
+                if (matchPlace && (Utils::randomInt(100) <= npc.chance)) {
                     int totalTileX = gx * 8 + npc.x;
                     int totalTileY = gy * 11 + npc.y;
-                    int lvlX = totalTileX / 64;
-                    int lvlY = totalTileY / 64;
-                    int localTileX = totalTileX % 64;
-                    int localTileY = totalTileY % 64;
-
-                    if (lvlX < levelsX && lvlY < levelsY) {
-                        NpcDef placedNpc = npc;
-                        placedNpc.x = localTileX;
-                        placedNpc.y = localTileY;
-                        levels[lvlX][lvlY].npcs.push_back(placedNpc);
-                    }
+                    NpcDef placedNpc = npc;
+                    placedNpc.x = totalTileX % 64;
+                    placedNpc.y = totalTileY % 64;
+                    levels[totalTileX / 64][totalTileY / 64].npcs.push_back(placedNpc);
                 }
             }
         }

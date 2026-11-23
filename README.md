@@ -1,4 +1,4 @@
-# Dungeon Generator (dungeongen)
+# Command-line generator that builds Graal-compatible dungeon levels and gmap files
 
 C++17 port and recreation of Dungeon Generator v1.0, originally developed by Linux Cyberjoueurs in 2002.
 

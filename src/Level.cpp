@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <filesystem>
 
 Level::Level() {
     for (int y = 0; y < 64; ++y) {
@@ -44,7 +45,7 @@ std::string Level::formatLevelName(const std::string& prefix, int x, int y, int 
 }
 
 bool Level::saveToFile(const std::string& levelStart, const std::string& gmapName, bool addTestNpcs, const std::string& wallTiles, const std::string& groundTiles) const {
-    std::ofstream file(name);
+    std::ofstream file(name, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Could not open level file for writing: " << name << std::endl;
         return false;
@@ -59,7 +60,7 @@ bool Level::saveToFile(const std::string& levelStart, const std::string& gmapNam
             uint16_t t = tiles[y][x];
             char c1 = Utils::getBase64Char(t & 0x3F);
             char c2 = Utils::getBase64Char((t >> 6) & 0x3F);
-            file << c1 << c2;
+            file << c2 << c1;
         }
         file << "\n";
     }
@@ -107,6 +108,11 @@ bool Level::saveToFile(const std::string& levelStart, const std::string& gmapNam
              << "}\n"
              << "NPCEND\n";
     }
+
+    file.close();
+    std::error_code ec;
+    auto size = std::filesystem::file_size(name, ec);
+    if (!ec && size > 0) std::filesystem::resize_file(name, size - 1, ec);
 
     return true;
 }

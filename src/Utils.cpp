@@ -6,6 +6,7 @@
 namespace Utils {
 
 static const char BASE64_TABLE[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static unsigned int rngState = 0;
 
 std::string trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\r\n");
@@ -40,7 +41,12 @@ int parseTileVal(const std::string& str) {
 
 int randomInt(int maxVal) {
     if (maxVal <= 0) return 0;
-    return std::rand() % maxVal;
+    rngState = rngState * 214013u + 2531011u;
+    return static_cast<int>(((rngState >> 16) & 0x7fff) % static_cast<unsigned int>(maxVal));
+}
+
+void seedRandom(unsigned int seed) {
+    rngState = seed;
 }
 
 } // namespace Utils

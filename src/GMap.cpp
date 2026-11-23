@@ -3,7 +3,7 @@
 #include <iostream>
 
 bool GMap::saveToFile(const std::string& filename) const {
-    std::ofstream file(filename);
+    std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Could not open gmap file for writing: " << filename << std::endl;
         return false;
@@ -12,7 +12,7 @@ bool GMap::saveToFile(const std::string& filename) const {
     file << "GRMAP001\n"
          << "WIDTH " << width << "\n"
          << "HEIGHT " << height << "\n"
-         << "GENERATED " << generatedLastLevel << "\n";
+         << "GENERATED " << generatedLastLevel;
 
     return true;
 }

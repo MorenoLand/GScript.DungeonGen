@@ -27,7 +27,7 @@ private:
     void writeLevels();
     void writeGMap();
 
-    int determineWallShape(int gx, int gy) const;
+    std::string determineWallShape(int gx, int gy) const;
 };
 
 #endif // DUNGEONGENERATOR_H
