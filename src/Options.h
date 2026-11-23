@@ -34,7 +34,7 @@ public:
     int layoutHeight = 0;
     std::string layoutStyle;
     int layoutOption = 0;
-    int layoutSymmetry = 0;
+    int layoutSymmetry = 1;
     int layoutOrientation = 0;
 
     // Wall tile templates: wall, walln, walle, walls, wallw, wallne, wallnw, wallse, wallsw, wallne2, wallnw2, wallse2, wallsw2, walld1, walld2

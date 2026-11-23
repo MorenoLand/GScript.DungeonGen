@@ -11,6 +11,7 @@ std::vector<std::string> split(const std::string& str, char delimiter);
 char getBase64Char(int val);
 int parseTileVal(const std::string& str);
 void seedRandom(unsigned int seed);
+int randomValue();
 int randomInt(int maxVal);
 
 } // namespace Utils

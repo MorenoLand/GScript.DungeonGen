@@ -9,6 +9,7 @@ add_executable(dungeongen
     src/Utils.cpp
     src/Options.cpp
     src/Layout.cpp
+    src/LayoutStyle.cpp
     src/DungeonMaker.cpp
     src/Level.cpp
     src/GMap.cpp

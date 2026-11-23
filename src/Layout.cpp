@@ -1,5 +1,6 @@
 #include "Layout.h"
 #include "DungeonMaker.h"
+#include "LayoutStyle.h"
 #include "Utils.h"
 #include <fstream>
 #include <iostream>
@@ -9,14 +10,12 @@
 bool Layout::generate(const Options& options) {
     if (!options.layoutFile.empty()) {
         if (loadFromFile(options.layoutFile)) {
-            if (options.doubleRes) applyDoubleResolution();
             return true;
         }
     }
 
     if (!options.roomFile.empty()) {
         if (generateProceduralRoom(options.roomFile, options.statFile)) {
-            if (options.doubleRes) applyDoubleResolution();
             return true;
         }
     }
@@ -26,7 +25,6 @@ bool Layout::generate(const Options& options) {
         return false;
     }
 
-    if (options.doubleRes) applyDoubleResolution();
     return true;
 }
 
@@ -76,123 +74,90 @@ bool Layout::generateProceduralRoom(const std::string& roomFile, const std::stri
 }
 
 bool Layout::generateStyle(const Options& options) {
-    int w = (options.layoutWidth >= 4) ? options.layoutWidth : (Utils::randomInt(25) + 15);
-    int h = (options.layoutHeight >= 4) ? options.layoutHeight : (Utils::randomInt(25) + 15);
+    int w = options.layoutWidth;
+    int h = options.layoutHeight;
+    if (options.doubleRes) {
+        w /= 2;
+        h /= 2;
+    }
+    int sym = options.layoutSymmetry;
+    if (sym == 1) {
+        if (w < 4) w = Utils::randomInt(25) + 15;
+        if (h < 4) h = Utils::randomInt(25) + 15;
+    } else {
+        if (w < 15) w = Utils::randomInt(25) + 15;
+        if (h < 15) h = Utils::randomInt(25) + 15;
+    }
+    if (sym == 0) {
+        sym = Utils::randomInt(4) + 1;
+        if (sym == 3 || sym == 4) h = h / 2 + 1;
+        if (sym == 2 || sym == 4) w = w / 2 + 1;
+    } else {
+        if (sym == 3 || sym == 4) h = h / 2 + 1;
+        if (sym == 2 || sym == 4) w = w / 2 + 1;
+    }
 
     std::string style = options.layoutStyle;
+    LayoutStyle::Grid g;
+    int styleNo = 0;
     if (style.find("onion") != std::string::npos) {
-        grid = generateOnion(w, h, options.layoutOption, options.layoutSymmetry);
-    } else if (style.find("maze") != std::string::npos) {
-        grid = generateMaze(w, h, options.layoutSymmetry);
-    } else if (style.find("spiral") != std::string::npos) {
-        grid = generateSpiral(w, h, options.layoutSymmetry);
-    } else if (style.find("rogue") != std::string::npos) {
-        grid = generateRogue(w, h, options.layoutSymmetry);
-    } else if (style.find("snake") != std::string::npos) {
-        grid = generateSnake(w, h);
-    } else if (style.find("squarespiral") != std::string::npos) {
-        grid = generateSquareSpiral(w, h);
-    } else {
-        // Random default style
-        int r = Utils::randomInt(5);
-        if (r == 0) grid = generateMaze(w, h, options.layoutSymmetry);
-        else if (r == 1) grid = generateOnion(w, h, options.layoutOption, options.layoutSymmetry);
-        else if (r == 2) grid = generateSpiral(w, h, options.layoutSymmetry);
-        else if (r == 3) grid = generateRogue(w, h, options.layoutSymmetry);
-        else grid = generateSnake(w, h);
+        g = LayoutStyle::onion(w, h, static_cast<unsigned int>(options.layoutOption), 0);
+        styleNo = 1;
+        if (Utils::randomInt(3) == 0 && (options.layoutOption & 0x40) == 0) {
+            LayoutStyle::onionFinishing(g, w, h);
+        }
+    }
+    if (style.find("maze") != std::string::npos) {
+        g = LayoutStyle::maze(w, h, options.layoutOption);
+        styleNo = 2;
+    }
+    if (style.find("spiral") != std::string::npos) {
+        g = LayoutStyle::spiral(w, h, static_cast<unsigned int>(options.layoutOption));
+        styleNo = 3;
+    }
+    if (style.find("rogue") != std::string::npos) {
+        g = LayoutStyle::rogue(w, h, options.layoutOption);
+        styleNo = 4;
+    }
+    if (style.find("snake") != std::string::npos) {
+        g = LayoutStyle::snake(w, h);
+        styleNo = 5;
+    }
+    if (style.find("squarespiral") != std::string::npos) {
+        g = LayoutStyle::squareSpiral(w, h);
+        styleNo = 6;
+    }
+    if (g.empty()) {
+        int r = Utils::randomInt(6);
+        if (r == 0) { g = LayoutStyle::maze(w, h, Utils::randomInt(2)); styleNo = 2; }
+        else if (r == 1) { g = LayoutStyle::onion(w, h, static_cast<unsigned int>(options.layoutOption), 0); styleNo = 1; }
+        else if (r == 2) { g = LayoutStyle::spiral(w, h, static_cast<unsigned int>(options.layoutOption)); styleNo = 3; }
+        else if (r == 3) { g = LayoutStyle::rogue(w, h, options.layoutOption); styleNo = 4; }
+        else if (r == 4) { g = LayoutStyle::snake(w, h); styleNo = 5; }
+        else { g = LayoutStyle::squareSpiral(w, h); styleNo = 6; }
     }
 
-    width = static_cast<int>(grid.size());
-    height = (width > 0) ? static_cast<int>(grid[0].size()) : 0;
+    LayoutStyle::applySymmetry(g, sym, w, h, styleNo);
+    if (options.doubleRes) {
+        g = LayoutStyle::doubleScale(g, w, h);
+        w = w * 2 - 1;
+        h = h * 2 - 1;
+    }
+    int rotation = Utils::randomInt(4);
+    g = LayoutStyle::rotate(g, rotation, w, h);
+    LayoutStyle::orphanWallCleanup(g, w, h);
+
+    if (g.empty()) return false;
+    for (int x = 0; x < w; ++x) {
+        for (int y = 0; y < h; ++y) {
+            if (g[x][y] == '#') g[x][y] = 'X';
+            else if (g[x][y] == 0) g[x][y] = '.';
+        }
+    }
+    grid = g;
+    width = w;
+    height = h;
     return true;
-}
-
-std::vector<std::vector<char>> Layout::generateOnion(int w, int h, int opt, int sym) {
-    std::vector<std::vector<char>> g(w, std::vector<char>(h, '#'));
-    int ringCount = std::min(w, h) / 4;
-    for (int r = 0; r < ringCount; ++r) {
-        int x0 = r * 2 + 1;
-        int y0 = r * 2 + 1;
-        int x1 = w - 1 - (r * 2 + 1);
-        int y1 = h - 1 - (r * 2 + 1);
-        if (x0 >= x1 || y0 >= y1) break;
-
-        for (int x = x0; x <= x1; ++x) { g[x][y0] = '.'; g[x][y1] = '.'; }
-        for (int y = y0; y <= y1; ++y) { g[x0][y] = '.'; g[x1][y] = '.'; }
-
-        // Openings
-        g[(x0 + x1) / 2][y0] = '.';
-        g[x0][(y0 + y1) / 2] = '.';
-    }
-    return g;
-}
-
-std::vector<std::vector<char>> Layout::generateMaze(int w, int h, int sym) {
-    std::vector<std::vector<char>> g(w, std::vector<char>(h, '#'));
-    for (int x = 1; x < w - 1; ++x) {
-        for (int y = 1; y < h - 1; ++y) {
-            if ((x % 2 == 1) || (y % 2 == 1)) {
-                g[x][y] = '.';
-            }
-        }
-    }
-    return g;
-}
-
-std::vector<std::vector<char>> Layout::generateSpiral(int w, int h, int sym) {
-    std::vector<std::vector<char>> g(w, std::vector<char>(h, '#'));
-    float cx = w / 2.0f;
-    float cy = h / 2.0f;
-    float maxR = std::min(cx, cy) - 2.0f;
-    float angle = 0.0f;
-    while (angle < 4.0f * 3.14159f) {
-        float r = (angle / (4.0f * 3.14159f)) * maxR;
-        int px = static_cast<int>(cx + r * std::cos(angle));
-        int py = static_cast<int>(cy + r * std::sin(angle));
-        if (px >= 1 && px < w - 1 && py >= 1 && py < h - 1) {
-            g[px][py] = '.';
-        }
-        angle += 0.1f;
-    }
-    return g;
-}
-
-std::vector<std::vector<char>> Layout::generateRogue(int w, int h, int sym) {
-    std::vector<std::vector<char>> g(w, std::vector<char>(h, '#'));
-    int roomW = (w - 4) / 3;
-    int roomH = (h - 4) / 3;
-    for (int rx = 0; rx < 3; ++rx) {
-        for (int ry = 0; ry < 3; ++ry) {
-            int x0 = 1 + rx * (roomW + 1);
-            int y0 = 1 + ry * (roomH + 1);
-            for (int x = x0; x < x0 + roomW - 1 && x < w - 1; ++x) {
-                for (int y = y0; y < y0 + roomH - 1 && y < h - 1; ++y) {
-                    g[x][y] = '.';
-                }
-            }
-        }
-    }
-    return g;
-}
-
-std::vector<std::vector<char>> Layout::generateSnake(int w, int h) {
-    std::vector<std::vector<char>> g(w, std::vector<char>(h, '#'));
-    bool leftToRight = true;
-    for (int y = 1; y < h - 1; y += 2) {
-        for (int x = 1; x < w - 1; ++x) {
-            g[x][y] = '.';
-        }
-        if (y + 1 < h - 1) {
-            int turnX = leftToRight ? (w - 2) : 1;
-            g[turnX][y + 1] = '.';
-        }
-        leftToRight = !leftToRight;
-    }
-    return g;
-}
-
-std::vector<std::vector<char>> Layout::generateSquareSpiral(int w, int h) {
-    return generateOnion(w, h, 0, 0);
 }
 
 void Layout::applyDoubleResolution() {

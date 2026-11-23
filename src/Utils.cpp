@@ -39,10 +39,14 @@ int parseTileVal(const std::string& str) {
     return std::atoi(s.c_str());
 }
 
+int randomValue() {
+    rngState = rngState * 214013u + 2531011u;
+    return static_cast<int>((rngState >> 16) & 0x7fff);
+}
+
 int randomInt(int maxVal) {
     if (maxVal <= 0) return 0;
-    rngState = rngState * 214013u + 2531011u;
-    return static_cast<int>(((rngState >> 16) & 0x7fff) % static_cast<unsigned int>(maxVal));
+    return randomValue() % maxVal;
 }
 
 void seedRandom(unsigned int seed) {
